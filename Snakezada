@@ -1,0 +1,174 @@
+import tkinter as tk
+from random import randint, choice
+
+# Constantes do jogo
+CANVAS_WIDTH = 400
+CANVAS_HEIGHT = 400
+BLOCK_SIZE = 20
+DELAY = 60
+GAME_OVER_MESSAGES = [
+    "Ruim demais, slc",
+    "Perdeu seu lixo, kkkk!",
+    "Voce é podre",
+    "Desiste mano, nmrl"
+]
+
+class MainMenu(tk.Toplevel):
+    def __init__(self, master, start_game):
+        super().__init__(master)
+        self.title("Jogo da Cobrinha,kkkkk")
+        self.geometry("400x300")
+
+        self.title_label = tk.Label(self, text="Jogo da Cobrinha,kkkkk", font=("Comic sans MG", 18))
+        self.title_label.pack(pady=20)
+
+        self.start_game = start_game
+
+        self.start_button = tk.Button(self, text="Start", command=self.start_game)
+        self.start_button.pack()
+
+class SnakeGame:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("Snake")
+        self.canvas = tk.Canvas(master, width=CANVAS_WIDTH, height=CANVAS_HEIGHT, bg="blue")
+        self.canvas.pack()
+
+        self.snake = [(100, 100), (80, 100), (60, 100)]
+        self.food = self.create_food()
+        self.direction = "Right"
+        self.paused = False
+        self.score = 0
+
+        self.bind_keys()
+        self.update()
+
+        # Cria e exibe o placar na tela
+        self.score_text = self.canvas.create_text(
+            10, 10, text="Score: 0", fill="white", anchor="nw", font=("Comic sans MG", 14)
+        )
+
+    def bind_keys(self):
+        self.master.bind("<Up>", self.go_up)
+        self.master.bind("<Down>", self.go_down)
+        self.master.bind("<Left>", self.go_left)
+        self.master.bind("<Right>", self.go_right)
+        self.master.bind("<w>", self.go_up)
+        self.master.bind("<s>", self.go_down)
+        self.master.bind("<a>", self.go_left)
+        self.master.bind("<d>", self.go_right)
+        self.master.bind("<space>", self.toggle_pause)
+
+    def go_up(self, event):
+        if self.direction != "Down":
+            self.direction = "Up"
+
+    def go_down(self, event):
+        if self.direction != "Up":
+            self.direction = "Down"
+
+    def go_left(self, event):
+        if self.direction != "Right":
+            self.direction = "Left"
+
+    def go_right(self, event):
+        if self.direction != "Left":
+            self.direction = "Right"
+
+    def toggle_pause(self, event):
+        self.paused = not self.paused
+
+    def create_food(self):
+        x = randint(1, (CANVAS_WIDTH-BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE
+        y = randint(1, (CANVAS_HEIGHT-BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE
+        return x, y
+
+    def draw_snake(self):
+        self.canvas.delete("snake")
+        for segment in self.snake:
+            x, y = segment
+            self.canvas.create_rectangle(x, y, x + BLOCK_SIZE, y + BLOCK_SIZE, fill="black", tag="snake")
+
+    def draw_food(self):
+        # Apaga a comida anterior
+        self.canvas.delete("food")
+        x, y = self.food
+        self.canvas.create_rectangle(x, y, x + BLOCK_SIZE, y + BLOCK_SIZE, fill="green", tag="food")
+
+    def update_score(self):
+        self.score += 1
+        self.canvas.itemconfig(self.score_text, text="Score: " + str(self.score))
+
+    def update(self):
+        if not self.paused:
+            # Atualiza a posição da cobra
+            head = self.snake[0]
+            if self.direction == "Up":
+                head = (head[0], head[1] - BLOCK_SIZE)
+            elif self.direction == "Down":
+                head = (head[0], head[1] + BLOCK_SIZE)
+            elif self.direction == "Left":
+                head = (head[0] - BLOCK_SIZE, head[1])
+            elif self.direction == "Right":
+                head = (head[0] + BLOCK_SIZE, head[1])
+
+            self.snake.insert(0, head)
+
+            # Verifica colisão com a parede ou consigo mesma
+            if (
+                head[0] < 0
+                or head[0] >= CANVAS_WIDTH
+                or head[1] < 0
+                or head[1] >= CANVAS_HEIGHT
+                or len(self.snake) != len(set(self.snake))
+            ):
+                self.game_over()
+                return
+
+            # Verifica se a cobra comeu a comida
+            if head == self.food:
+                self.update_score()
+                self.food = self.create_food()
+            else:
+                self.snake.pop()
+
+        self.draw_snake()
+        self.draw_food()
+        self.master.after(DELAY, self.update)
+
+    def game_over(self):
+        self.paused = True
+        game_over_text = choice(GAME_OVER_MESSAGES)
+        self.canvas.create_text(CANVAS_WIDTH // 2, CANVAS_HEIGHT // 2, text=game_over_text, fill="Red", font=("Comic sans MG", 24), tag="game_over")
+        restart_button = tk.Button(self.master, text="Restart", command=self.restart_game)
+        restart_button.pack()
+
+    def restart_game(self):
+        # Reinicia as configurações do jogo
+        self.snake = [(100, 100), (80, 100), (60, 100)]
+        self.food = self.create_food()
+        self.direction = "Right"
+        self.paused = False
+        self.score = 0
+        # Remove o texto de "Game Over" e o botão de "Restart"
+        self.canvas.delete("game_over")
+        for widget in self.master.winfo_children():
+            widget.destroy()
+        # Reinicia o jogo
+        self.__init__(self.master)
+
+def show_main_menu():
+    # Função para exibir o menu principal
+    def start_game():
+        # Função para iniciar o jogo
+        root.deiconify()  # Torna a janela principal visível novamente
+        menu.destroy()  # Destroi a janela do menu
+        game = SnakeGame(root)  # Inicia o jogo
+
+    menu = MainMenu(root, start_game)  # Cria uma instância do menu principal
+    root.withdraw()  # Esconde a janela principal enquanto o menu está sendo exibido
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    show_main_menu()
+    root.mainloop()
